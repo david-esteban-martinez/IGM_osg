@@ -34,12 +34,12 @@ osg::AnimationPath *createAnimationPath(const osg::Vec3 &center, float radius, d
         }
         else{
             osg::Vec3 position(center+osg::Vec3(sinf(yaw)*radius,cosf(yaw)*radius,0.0f));
-                    osg::Quat rotation(osg::Quat(roll, osg::Vec3(1.0, 0.0, 0.0)) * osg::Quat(-(yaw + osg::inDegrees(90.0f)), axis));
+            osg::Quat rotation(osg::Quat(roll, osg::Vec3(1.0, 0.0, 0.0)) * osg::Quat(-(yaw + osg::inDegrees(90.0f)), axis));
 
-        animationPath->insert(time, osg::AnimationPath::ControlPoint(position, rotation));
+            animationPath->insert(time, osg::AnimationPath::ControlPoint(position, rotation));
 
-        yaw += yaw_delta;
-        time += time_delta;
+            yaw += yaw_delta;
+            time += time_delta;
         }
 
 
@@ -49,6 +49,41 @@ osg::AnimationPath *createAnimationPath(const osg::Vec3 &center, float radius, d
 
 
 int main() {
+
+
+    osg::ref_ptr<osg::Group> sgRoot(new osg::Group());
+
+
+
+    osg::ref_ptr<osg::Node> lampModel = osgDB::readNodeFile("/cube.osg");
+    if (!lampModel)
+    {
+        std::cerr << "Problem opening the cube model.\n";
+        exit(1);
+    }
+
+    osg::MatrixTransform* transform = new osg::MatrixTransform();
+    transform->setMatrix(osg::Matrix::scale(0.25f, 0.25f, 0.25f));
+
+    transform->addChild(lampModel);
+
+    osg::ref_ptr<osg::PositionAttitudeTransform> lightPAT(
+            new osg::PositionAttitudeTransform());
+
+    lightPAT->setPosition(osg::Vec3(-3.0, 0.0, 3.0));
+    sgRoot->addChild(lightPAT);
+
+    // Setup GL_LIGHT1. Leave GL_LIGHT0 as it is by default (enabled)
+    osg::ref_ptr<osg::LightSource> lightSource(new osg::LightSource());
+    lightSource->addChild(transform);
+    lightSource->getLight()->setLightNum(1);
+    lightSource->getLight()->setPosition(osg::Vec4(0.0, 0.0, 0.0, 1.0));
+    lightSource->getLight()->setDiffuse(osg::Vec4(1.0, 1.0, 0.0, 1.0));
+
+    lightPAT->addChild(lightSource);
+
+    osg::ref_ptr<osg::StateSet> ss = sgRoot->getOrCreateStateSet();
+    ss->setMode(GL_LIGHT1, osg::StateAttribute::ON);
 
     float animationLength = 10.0f;
 
@@ -70,17 +105,11 @@ int main() {
 
     osg::AnimationPath *centerRotation2 = createAnimationPath(bs.center(), 0.0f, 5.0f, osg::Vec3(0.0, 0.0, 1.0),true);
     osg::AnimationPath *rotationVertical = createAnimationPath(osg::Vec3(1.0, 0.0, 0.0), 3.0f, animationLength,
-                                                                  osg::Vec3(0.0, 1.0, 0.0),true);
+                                                               osg::Vec3(0.0, 1.0, 0.0),true);
 
     // Create a Geode with your cube geometry (similar to what you provided)
     osg::ref_ptr <osg::Geode> geode = new osg::Geode;
-    osg::MatrixTransform *positioned = new osg::MatrixTransform;
-    positioned->setDataVariance(osg::Object::STATIC);
-    positioned->setMatrix(osg::Matrix::translate(-bs.center()) *
-                          osg::Matrix::scale(size, size, size) *
-                          osg::Matrix::rotate(osg::inDegrees(-90.0f), 0.0f, 0.0f, 1.0f));
 
-    positioned->addChild(cube);
 
     osg::PositionAttitudeTransform *xform = new osg::PositionAttitudeTransform;
 
@@ -108,11 +137,10 @@ int main() {
 
 
     osg::ref_ptr <osg::Group> root = new osg::Group;
-    root->addChild(geode);
-
+    sgRoot->addChild(geode);
     // Create a viewer and set the scene data
     osgViewer::Viewer viewer;
-    viewer.setSceneData(root);
+    viewer.setSceneData(sgRoot);
 
     // Run the viewer
     return viewer.run();
